@@ -214,18 +214,22 @@ std::string FastMapMatch::match_gps_file(
         MM::MatchResult result = match_traj(
             trajectory, fmm_config);
         writer.write_result(trajectory,result);
+        // All the statistics are shared between threads: without the braces
+        // only the first statement would be inside the critical section.
         #pragma omp critical
-        if (!result.cpath.empty()) {
-          points_matched += points_in_tr;
-          traj_matched+=1;
-        }
-        total_points += points_in_tr;
-        total_trajs += 1;
-        ++progress;
-        if (progress % step_size == 0) {
-          std::stringstream buf;
-          buf << "Progress " << progress << '\n';
-          std::cout << buf.rdbuf();
+        {
+          if (!result.cpath.empty()) {
+            points_matched += points_in_tr;
+            traj_matched+=1;
+          }
+          total_points += points_in_tr;
+          total_trajs += 1;
+          ++progress;
+          if (progress % step_size == 0) {
+            std::stringstream buf;
+            buf << "Progress " << progress << '\n';
+            std::cout << buf.rdbuf();
+          }
         }
       }
       trajectories = next_trajectories.get();
