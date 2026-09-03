@@ -12,6 +12,7 @@ FMM provides Python and C++ APIs and can be used in the command line, in Jupyter
 
 ### Table of Contents
 - [Features](#features)
+- [Benchmark (fork vs origin)](#benchmark-fork-vs-origin)
 - [Screenshots of notebook](#screenshots-of-notebook)
 - [Requirements](#requirements)
 - [Getting Started](#getting-started)
@@ -32,6 +33,35 @@ FMM provides Python and C++ APIs and can be used in the command line, in Jupyter
 - **Hexagon match**: :tada: Match to the uber's [h3](https://github.com/uber/h3) Hexagonal Hierarchical Geospatial Indexing System. Check the [demo](example/h3).
 
 We encourage contribution with feature request, bug report or developping new map matching algorithms using the framework.
+
+### Benchmark (fork vs origin)
+
+Test map matching of connected vehicle GPS points in three
+sub-regions in Michigan, with the settings `k = 8`, 
+search radius 3000 m, GPS error 100 m, all output fields
+written). The time is the `Time takes` value reported by
+`FastMapMatch.match_gps_file`, i.e. reading the input CSV, matching and
+writing the result file, measured on an AMD Ryzen 9 9950X (16 cores,
+32 threads) with 32 OpenMP threads.
+
+| Region | Area (E-W x N-S) | Road network | GPS points | Trajectories | `19ef34e` | This version | Speedup |
+|--------|------------------|--------------|-----------:|-------------:|----------:|-------------:|--------:|
+|   1    | 4.4 x 8.9 km     | 1,862 edges  |  5,368,249 |       75,595 |    13.0 s |        1.0 s |     13x |
+|   2    | 13.7 x 9.3 km    | 4,990 edges  | 15,387,122 |      150,458 |    72.7 s |        3.1 s |     23x |
+|   3    | 9.0 x 5.8 km     | 2,836 edges  |  8,020,427 |       92,083 |    34.5 s |        1.6 s |     22x |
+
+- [`19ef34e`](https://github.com/cyang-kth/fmm/commit/19ef34e1f57ff2f2484231aa0d01dfffea986ec1) is the code
+  before the changes of this fork, built with the newest tool chain it
+  compiles with (GCC 13, Boost 1.74, GDAL 3.4.3, Python 3.10).
+- *This version* is built with GCC 15, Boost 1.92, GDAL 3.12 and Python 3.14.
+  The tool chain upgrade by itself did not change the timings; the gain comes
+  from the candidate search (a bounding box bug that made the rtree return
+  most of the network for every point, a k-nearest search that skips the
+  edges which cannot be among the k best, and an adaptive query box), an
+  open addressing UBODT hash table, faster CSV parsing and writing, and
+  reading the next block of trajectories while the current one is matched.
+- Both versions produce the same matching results for these data sets
+  (verified by comparing the complete output files).
 
 ### Screenshots of notebook
 
@@ -62,15 +92,16 @@ Explore the factor of hexagon level and interpolate
 Source code of these screenshots are available at https://github.com/cyang-kth/fmm-examples.
 
 ### Requirements
-- C++ Compiler supporting c++11 and OpenMP
-- CMake >=3.5: provides cross platform building tools
-- GDAL >= 2.2: IO with ESRI shapefile, Geometry data type
-- Boost Graph >= 1.54.0: routing algorithms used in UBODT Generator
-- Boost Geometry >= 1.54.0: Rtree, Geometry computation
-- Boost Serialization >= 1.54.0: Serialization of UBODT in binary format
+- C++ Compiler supporting c++17 and OpenMP
+- CMake >=3.16: provides cross platform building tools
+- GDAL >= 2.2 (tested up to 3.13): IO with ESRI shapefile, Geometry data type
+- Boost Graph >= 1.70 (tested up to 1.92): routing algorithms used in UBODT Generator
+- Boost Geometry >= 1.70: Rtree, Geometry computation
+- Boost Serialization >= 1.70: Serialization of UBODT in binary format
 - ~~Libosmium: a library for reading OpenStreetMap data. Requires expat and bz2.~~ (The direct input with OSM file is removed since the raw dataset may contain
 topology errors. It is suggested to use shapefile input downloaded from osmnx.)
-- swig: used for building Python bindings
+- swig >= 4.0: used for building Python bindings
+- Python 3 (tested up to 3.14) with the development headers
 
 ### Getting Started
 These instructions are for the Ubuntu platform. For installation on Windows and Mac, refer to the [installation instructions](https://fmm-wiki.github.io/docs/installation/) here.
